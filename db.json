@@ -1,0 +1,39 @@
+{
+  "attendance": [
+    {
+      "user_id": 103,
+      "date": "3/16/2024",
+      "status": 1,
+      "id": 1
+    }
+  ],
+  "users": [
+    {
+      "id": 101,
+      "fname": "Joey",
+      "lname": "Tribbiani",
+      "class": 10,
+      "section": "A",
+      "email": "jt1234@srmist.edu.in",
+      "password": "test@123"
+    },
+    {
+      "id": 102,
+      "fname": "Rachel",
+      "lname": "Green",
+      "class": 11,
+      "section": "B",
+      "email": "rg1234@srmist.edu.in",
+      "password": "test@123"
+    },
+    {
+      "id": 103,
+      "fname": "Chandler",
+      "lname": "Bing",
+      "class": 9,
+      "section": "C",
+      "email": "cb1234@srmist.edu.in",
+      "password": "test@123"
+    }
+  ]
+}

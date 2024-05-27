@@ -1,0 +1,55 @@
+name: Build and Deploy to Server
+on:
+  push:
+    branches: ['prod']
+  workflow_dispatch:
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    name: Deploy build docker image, push and deploy to server
+    env:
+      MACHINE: home
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
+          buildkitd-config-inline: |
+            [registry."100.93.231.44:5000"]
+              insecure=true
+              http=true
+      - name: Setup Insecure Docker Repository
+        run: |
+          sudo truncate -s-2 /etc/docker/daemon.json
+          echo ", \"insecure-registries\": [\"${{ secrets.DOCKER_REGISTRY }}\"]}" | sudo tee -a /etc/docker/daemon.json
+          sudo systemctl restart docker
+      - name: Login to Docker Registry
+        run: docker login ${{ secrets.DOCKER_REGISTRY }} --username=${{ secrets.DOCKER_USERNAME }} --password=${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest
+      - name: SSH into server and update deployment
+        env:
+          DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+          DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_IMAGE_NAME }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: | 
+            docker pull $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:latest
+            export RUNNING_CONTAINER_ID=$(docker ps -q --filter name=rollsync_container)
+            [ ! -z "$RUNNING_CONTAINER_ID" ] && docker stop $RUNNING_CONTAINER_ID && docker rm $RUNNING_CONTAINER_ID
+            docker run -d --name rollsync_container -p 3000:3000 --restart always 100.93.231.44:5000/rollsync:latest
